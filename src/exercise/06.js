@@ -2,6 +2,7 @@
 // http://localhost:3000/isolated/exercise/06.js
 
 import * as React from 'react'
+import warning from 'warning'
 import {Switch} from '../switch'
 
 const callAll =
@@ -33,12 +34,25 @@ function useToggle({
   reducer = toggleReducer,
   onChange,
   on: controlledOn,
+  readOnly = false,
 } = {}) {
   const {current: initialState} = React.useRef({on: initialOn})
   const [state, dispatch] = React.useReducer(reducer, initialState)
 
   const onIsControlled = controlledOn != null // user passed in an on
   const on = onIsControlled ? controlledOn : state.on // then we want to use that on value
+  const hasOnChange = Boolean(onChange)
+
+  const {current: onWasControlled} = React.useRef(onIsControlled)
+
+  React.useEffect(() => {
+    warning(!(onIsControlled && !onWasControlled), 'It was not controlled but now it is');
+    warning(!(!controlledOn && onWasControlled), 'It was controlled but now it is not')
+  }, [onIsControlled, onWasControlled])
+
+  React.useEffect(() => {
+    warning(hasOnChange || !onIsControlled || readOnly, 'Someth bad')
+  }, [hasOnChange, onIsControlled, readOnly])
 
   // const dispatchWithOnChange = action => {
   //   if (!onIsControlled) dispatch(action)
@@ -94,19 +108,20 @@ function useToggle({
   }
 }
 
-function Toggle({on: controlledOn, onChange, initialOn, reducer}) {
+function Toggle({on: controlledOn, onChange, initialOn, reducer, readOnly}) {
   const {on, getTogglerProps} = useToggle({
     on: controlledOn,
     onChange,
     initialOn,
     reducer,
+    readOnly,
   })
   const props = getTogglerProps({on})
   return <Switch {...props} />
 }
 
 function App() {
-  const [bothOn, setBothOn] = React.useState(false)
+  const [bothOn, setBothOn] = React.useState()
   const [timesClicked, setTimesClicked] = React.useState(0)
 
   function handleToggleChange(state, action) {
@@ -140,7 +155,7 @@ function App() {
       <hr />
       <div>
         <div>Uncontrolled Toggle:</div>
-        <Toggle
+         <Toggle
           onChange={(...args) =>
             console.info('Uncontrolled Toggle onChange', ...args)
           }
